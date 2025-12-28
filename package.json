@@ -1,7 +1,9 @@
 {
   "name": "self-hosted-pages-mcp",
   "version": "0.1.0",
-  "scripts": {},
+  "scripts": {
+    "build": "tsc"
+  },
   "dependencies": {
     "nanoid": "^5.1.5",
     "liuren-ts-lib": "^1.2.0"
