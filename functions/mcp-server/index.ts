@@ -1,5 +1,7 @@
+import { getLiuRenByDate, getNianMing } from "liuren-ts-lib";
 import { deployHtmlToKv } from "../kv/set";
 import { KV_ERROR_MESSAGE, isKvError } from "../shared/constants";
+import { formatLiurenMarkdown } from "./liuren-formatter";
 
 export async function deployHtml(value: string, baseUrl: string) {
   // Use the shared deployment logic from kv/set.ts
@@ -75,6 +77,33 @@ const handleToolsList = (id: string) => {
             required: ["value"],
           },
         },
+        {
+          name: "calculate_liuren_pan",
+          description:
+            "Calculate 大六壬 (Da Liu Ren) divination chart based on birth date, gender, and current time",
+          inputSchema: {
+            type: "object",
+            properties: {
+              birth_date: {
+                type: "string",
+                description:
+                  "Birth date in ISO format (e.g., '1990-05-20' or '1990-05-20T14:30:00')",
+              },
+              gender: {
+                type: "number",
+                description: "Gender: 0 for female, 1 for male",
+                enum: [0, 1],
+              },
+              current_date: {
+                type: "string",
+                description:
+                  "Current date/time for divination (optional), defaults to current time",
+                format: "date-time",
+              },
+            },
+            required: ["birth_date", "gender"],
+          },
+        },
       ],
     },
   };
@@ -103,6 +132,60 @@ const handleDeployHtml = async (id: string, params: any, request: any) => {
           {
             type: "text",
             text: result,
+          },
+        ],
+      },
+    };
+  } catch (e: any) {
+    const error = handleApiError(e);
+    return {
+      jsonrpc: "2.0",
+      id,
+      result: error,
+    };
+  }
+};
+
+// Handle calculate Liuren (Da Liu Ren) divination request
+const handleCalculateLiuren = async (id: string, params: any) => {
+  try {
+    const birthDateStr = params.arguments?.birth_date;
+    const gender = params.arguments?.gender;
+    const currentDateStr = params.arguments?.current_date;
+
+    if (!birthDateStr) {
+      throw new Error("Missing required argument: birth_date");
+    }
+
+    if (gender === undefined || (gender !== 0 && gender !== 1)) {
+      throw new Error("Missing or invalid argument: gender (must be 0 for female or 1 for male)");
+    }
+
+    const birthDate = new Date(birthDateStr);
+    if (isNaN(birthDate.getTime())) {
+      throw new Error("Invalid birth_date format. Must be a valid date string (e.g., '1990-05-20' or '1990-05-20T14:30:00')");
+    }
+
+    // Use current date or the provided date for divination
+    const currentDate = currentDateStr ? new Date(currentDateStr) : new Date();
+
+    // Calculate Liuren divination
+    const liurenResult = getLiuRenByDate(currentDate);
+
+    // Calculate NianMing (年命)
+    const nianMingResult = getNianMing(birthDate, gender);
+
+    // Format as markdown
+    const markdownOutput = formatLiurenMarkdown(birthDate, gender, liurenResult, nianMingResult);
+
+    return {
+      jsonrpc: "2.0",
+      id,
+      result: {
+        content: [
+          {
+            type: "text",
+            text: markdownOutput,
           },
         ],
       },
@@ -171,6 +254,10 @@ const processJsonRpcRequest = async (body: any, request: any) => {
 
   if (body.method === "tools/call" && body.params?.name === "deploy_html") {
     return await handleDeployHtml(body.id, body.params, request);
+  }
+
+  if (body.method === "tools/call" && body.params?.name === "calculate_liuren_pan") {
+    return await handleCalculateLiuren(body.id, body.params);
   }
 
   if (body.method === "resources/list" || body.method === "prompts/list") {

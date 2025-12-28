@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "scripts": {},
   "dependencies": {
-    "nanoid": "^5.1.5"
+    "nanoid": "^5.1.5",
+    "liuren-ts-lib": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "^20",
